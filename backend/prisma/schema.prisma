@@ -1,0 +1,190 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+}
+
+// User model (synced from Clerk)
+model User {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  clerkId       String   @unique
+  email         String
+  name          String?
+  role          UserRole @default(VIEWER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  content       Content[]
+  notifications Notification[]
+  feedbackResponses FeedbackResponse[]
+  pages         Page[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+// Content model
+model Content {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  type          ContentType
+  title         String
+  description   String?
+  body          String?     // For articles
+  videoUrl      String?     // For videos
+  imageUrl      String?
+  status        ContentStatus @default(DRAFT)
+  publishedAt   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  authorId      String      @db.ObjectId
+  author        User        @relation(fields: [authorId], references: [id])
+  locationIds   String[]    @db.ObjectId
+  tags          String[]
+
+  @@index([type, status])
+  @@index([authorId])
+  @@map("content")
+}
+
+enum ContentType {
+  ARTICLE
+  VIDEO
+  AD
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// Location model
+model Location {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  description   String?
+  parentId      String?     @db.ObjectId
+  parent        Location?   @relation("LocationHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children      Location[]  @relation("LocationHierarchy")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([parentId])
+  @@map("locations")
+}
+
+// Notification model
+model Notification {
+  id            String            @id @default(auto()) @map("_id") @db.ObjectId
+  title         String
+  message       String
+  type          NotificationType
+  targetType    NotificationTarget @default(ALL)
+  locationIds   String[]          @db.ObjectId
+  scheduledAt   DateTime?
+  sentAt        DateTime?
+  status        NotificationStatus @default(PENDING)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  createdById   String            @db.ObjectId
+  createdBy     User              @relation(fields: [createdById], references: [id])
+
+  @@index([status, scheduledAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  INFO
+  ALERT
+  PROMOTION
+}
+
+enum NotificationTarget {
+  ALL
+  LOCATION
+  USER
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// Feedback model
+model Feedback {
+  id            String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String?         // Mobile app user ID
+  type          FeedbackType
+  category      String?
+  subject       String
+  message       String
+  status        FeedbackStatus  @default(OPEN)
+  responses     FeedbackResponse[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([status, createdAt])
+  @@map("feedback")
+}
+
+enum FeedbackType {
+  FEEDBACK
+  SUPPORT
+  BUG_REPORT
+}
+
+enum FeedbackStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model FeedbackResponse {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  feedbackId    String    @db.ObjectId
+  feedback      Feedback  @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  message       String
+  authorId      String    @db.ObjectId
+  author        User      @relation(fields: [authorId], references: [id])
+  createdAt     DateTime  @default(now())
+
+  @@map("feedback_responses")
+}
+
+// Page model for dynamic public-facing pages
+model Page {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  title         String
+  slug          String      @unique
+  blocks        Json        // Array of content blocks/sections
+  status        PageStatus  @default(DRAFT)
+  publishedAt   DateTime?
+  scheduledAt   DateTime?   // Optional scheduling
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  authorId      String      @db.ObjectId
+  author        User        @relation(fields: [authorId], references: [id])
+
+  @@index([status, publishedAt])
+  @@index([authorId])
+  @@map("pages")
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
