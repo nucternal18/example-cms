@@ -12,11 +12,13 @@ import {
   Bell,
   MessageSquare,
   File,
+  FileQuestion,
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Pages", href: "/dashboard/pages", icon: File },
+  { name: "Forms", href: "/dashboard/forms", icon: FileQuestion },
   { name: "Articles", href: "/dashboard/content/articles", icon: FileText },
   { name: "Videos", href: "/dashboard/content/videos", icon: Video },
   { name: "Ads", href: "/dashboard/content/ads", icon: Megaphone },

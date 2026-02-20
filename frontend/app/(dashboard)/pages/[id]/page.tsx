@@ -24,27 +24,21 @@ import {
   PageStatus,
   PageBlock,
 } from "@/lib/hooks/use-pages";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { BlockEditor } from "@/components/blocks/block-editor";
+import { BlockTypeSelector } from "@/components/blocks/block-type-selector";
+import { blockRegistry } from "@/lib/blocks/block-registry";
 
 const pageSchema = z.object({
   title: z.string().min(1, "Title is required"),
   slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, and hyphens only"),
-  status: z.nativeEnum(PageStatus).default(PageStatus.DRAFT),
+  status: z.enum(PageStatus),
   publishedAt: z.string().optional(),
   scheduledAt: z.string().optional(),
 });
 
 type PageFormData = z.infer<typeof pageSchema>;
-
-const blockTypes = [
-  { value: "heading", label: "Heading" },
-  { value: "text", label: "Text" },
-  { value: "image", label: "Image" },
-  { value: "video", label: "Video" },
-  { value: "quote", label: "Quote" },
-  { value: "code", label: "Code Block" },
-];
 
 export default function EditPagePage() {
   const router = useRouter();
@@ -86,18 +80,29 @@ export default function EditPagePage() {
     }
   }, [pageData, reset]);
 
-  const addBlock = (type: string) => {
+  const addBlock = (blockSlug: string) => {
+    const blockType = blockRegistry.get(blockSlug);
+    if (!blockType) return;
+
+    // Initialize block with default values
+    const defaultData: Record<string, unknown> = {};
+    blockType.fields.forEach((field) => {
+      if (field.defaultValue !== undefined) {
+        defaultData[field.name] = field.defaultValue;
+      }
+    });
+
     const newBlock: PageBlock = {
-      type,
-      data: {},
+      type: blockSlug,
+      data: defaultData,
       id: Date.now().toString(),
     };
     setBlocks([...blocks, newBlock]);
   };
 
-  const updateBlock = (index: number, data: Record<string, any>) => {
+  const updateBlock = (index: number, data: Record<string, unknown>) => {
     const updated = [...blocks];
-    updated[index] = { ...updated[index], data: { ...updated[index].data, ...data } };
+    updated[index] = { ...updated[index], data };
     setBlocks(updated);
   };
 
@@ -230,186 +235,23 @@ export default function EditPagePage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Content Blocks</CardTitle>
-              <div className="flex gap-2 flex-wrap">
-                {blockTypes.map((type) => (
-                  <Button
-                    key={type.value}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addBlock(type.value)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    {type.label}
-                  </Button>
-                ))}
-              </div>
+              <BlockTypeSelector onSelect={addBlock} />
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {blocks.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
-                No blocks added yet. Click a button above to add a content block.
+                No blocks added yet. Click &quot;Add Block&quot; above to add a content block.
               </p>
             ) : (
               blocks.map((block, index) => (
-                <Card key={block.id || index}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm capitalize">
-                        {block.type} Block
-                      </CardTitle>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeBlock(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {block.type === "heading" && (
-                      <>
-                        <div className="space-y-2">
-                          <Label>Level</Label>
-                          <Select
-                            value={block.data.level || "1"}
-                            onValueChange={(value) =>
-                              updateBlock(index, { level: value })
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1">H1</SelectItem>
-                              <SelectItem value="2">H2</SelectItem>
-                              <SelectItem value="3">H3</SelectItem>
-                              <SelectItem value="4">H4</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Text</Label>
-                          <Input
-                            value={block.data.text || ""}
-                            onChange={(e) =>
-                              updateBlock(index, { text: e.target.value })
-                            }
-                            placeholder="Heading text"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {block.type === "text" && (
-                      <div className="space-y-2">
-                        <Label>Content</Label>
-                        <Textarea
-                          value={block.data.content || ""}
-                          onChange={(e) =>
-                            updateBlock(index, { content: e.target.value })
-                          }
-                          placeholder="Text content"
-                          rows={6}
-                        />
-                      </div>
-                    )}
-
-                    {block.type === "image" && (
-                      <>
-                        <div className="space-y-2">
-                          <Label>Image URL</Label>
-                          <Input
-                            value={block.data.url || ""}
-                            onChange={(e) =>
-                              updateBlock(index, { url: e.target.value })
-                            }
-                            placeholder="https://example.com/image.jpg"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Alt Text</Label>
-                          <Input
-                            value={block.data.alt || ""}
-                            onChange={(e) =>
-                              updateBlock(index, { alt: e.target.value })
-                            }
-                            placeholder="Image description"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {block.type === "video" && (
-                      <div className="space-y-2">
-                        <Label>Video URL</Label>
-                        <Input
-                          value={block.data.url || ""}
-                          onChange={(e) =>
-                            updateBlock(index, { url: e.target.value })
-                          }
-                          placeholder="https://example.com/video.mp4"
-                        />
-                      </div>
-                    )}
-
-                    {block.type === "quote" && (
-                      <>
-                        <div className="space-y-2">
-                          <Label>Quote Text</Label>
-                          <Textarea
-                            value={block.data.text || ""}
-                            onChange={(e) =>
-                              updateBlock(index, { text: e.target.value })
-                            }
-                            placeholder="Quote text"
-                            rows={3}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Author (optional)</Label>
-                          <Input
-                            value={block.data.author || ""}
-                            onChange={(e) =>
-                              updateBlock(index, { author: e.target.value })
-                            }
-                            placeholder="Quote author"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {block.type === "code" && (
-                      <>
-                        <div className="space-y-2">
-                          <Label>Code</Label>
-                          <Textarea
-                            value={block.data.code || ""}
-                            onChange={(e) =>
-                              updateBlock(index, { code: e.target.value })
-                            }
-                            placeholder="Code content"
-                            rows={8}
-                            className="font-mono"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Language (optional)</Label>
-                          <Input
-                            value={block.data.language || ""}
-                            onChange={(e) =>
-                              updateBlock(index, { language: e.target.value })
-                            }
-                            placeholder="javascript, python, etc."
-                          />
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
+                <BlockEditor
+                  key={block.id || index}
+                  block={block}
+                  index={index}
+                  onUpdate={updateBlock}
+                  onRemove={removeBlock}
+                />
               ))
             )}
           </CardContent>

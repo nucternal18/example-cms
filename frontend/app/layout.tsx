@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { QueryProvider } from "@/lib/providers/query-provider";
+import "@/lib/blocks/form-block-registry"; // Register form block type
 import "./globals.css";
 
 const geistSans = Geist({
